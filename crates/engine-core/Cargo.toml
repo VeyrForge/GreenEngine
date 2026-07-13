@@ -1,0 +1,42 @@
+[package]
+name = "engine-core"
+version = "1.0.0"
+edition = "2021"
+description = "Green Engine core: dynamic MoE expert scheduler (cache + predictor + prefetch)"
+autobins = false
+
+[features]
+default = []
+gpu = []
+
+[lib]
+name = "engine_core"
+path = "src/lib.rs"
+
+[[bin]]
+name = "bench"
+path = "src/bin/bench.rs"
+
+[[bin]]
+name = "predict_bench"
+path = "src/bin/predict_bench.rs"
+
+[[bin]]
+name = "predict_hidden_bench"
+path = "src/bin/predict_hidden_bench.rs"
+
+[[bin]]
+name = "quality_bench"
+path = "src/bin/quality_bench.rs"
+
+[[bin]]
+name = "frontier_bench"
+path = "src/bin/frontier_bench.rs"
+
+[[bin]]
+name = "mixed_bench"
+path = "src/bin/mixed_bench.rs"
+
+[[bin]]
+name = "matvec_bench"
+path = "src/bin/matvec_bench.rs"
