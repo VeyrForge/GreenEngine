@@ -10,9 +10,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          path: repo
+      - uses: actions/checkout@v4
+        with:
+          repository: VeyrForge/GreenCompress
+          path: green-compress
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: repo
       - name: Build ge
+        working-directory: repo
         run: cargo build --release -p ge
       - name: Test
+        working-directory: repo
         run: cargo test --release -p engine-core --lib -p ge
