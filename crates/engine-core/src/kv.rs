@@ -5,13 +5,32 @@
 //! 2025-26 training-free eviction policies (StreamingLLM / H2O / SnapKV / Quest-oracle) and the
 //! engine's differentiator — **adaptive per-layer budget** (some layers concentrate attention and
 //! need little KV; others need a lot). Validated against the Python analysis (see tests).
+//!
+//! The [`KvStore`] trait below is the Phase 4 execution seam for a paged KV backend. It is
+//! **experimental** and not wired to `ge run` / `ge chat serve` token generation today.
 
 use std::fs;
 use std::io;
+use std::ops::Range;
 use std::path::Path;
 
 const MAGIC: u32 = 0x4E54_5441; // "ATTN"
 const SINKS: usize = 4;
+
+/// Half-precision lane stored as IEEE 754 binary16 bits (no `half` crate dependency).
+pub type F16 = u16;
+
+/// Output of a single attention step over a KV range (Phase 4 stub).
+#[derive(Clone, Debug, Default)]
+pub struct AttentionResult {
+    pub output: Vec<F16>,
+}
+
+/// Paged KV store interface for the native runtime (Phase 4 — not connected to generation).
+pub trait KvStore {
+    fn append(&mut self, layer: usize, token: usize, key: &[F16], value: &[F16]);
+    fn attend(&self, layer: usize, query: &[F16], range: Range<usize>) -> AttentionResult;
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum KvPolicy {

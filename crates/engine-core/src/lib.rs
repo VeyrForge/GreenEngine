@@ -1,4 +1,8 @@
-//! Green Engine core — a dynamic MoE expert scheduler.
+//! Green Engine core — scheduling and execution research crate.
+//!
+//! **Today:** benchmarks and scheduling experiments (cache, predictor, KV policies) live here.
+//! **`ge run` / `ge chat serve`** use llama.cpp on ordinary GGUF models; this crate is not on
+//! that token-generation path yet.
 //!
 //! The engine treats experts as cacheable, schedulable units: hot in fast memory, cold
 //! fetched/prefetched on demand. It decides, per token and layer, what should be resident,
@@ -31,6 +35,7 @@ pub mod runtime;
 pub mod tensor;
 pub mod weights;
 // integration
+pub mod green_model;
 pub mod manifest;
 #[cfg(feature = "green")]
 pub mod green;
@@ -42,9 +47,13 @@ pub use cache::Eviction;
 pub use engine::{Config, Engine, Metrics, Prefetch};
 pub use green_tiers::{allocate_mixed, GreenTier};
 pub use hidden::{HiddenStates, JitStats};
+pub use green_model::{
+    DenseWeightStore, ExpertHandle, ExpertProvider as GreenExpertProvider, GreenExpertStore,
+    GreenModel, GreenModelError, LoadConfig, StubExpertProvider, Tokenizer,
+};
 pub use manifest::WeightManifest;
 pub use paged::{dense_provider, ExpertProvider, PagedFormat, PagedMetrics, PagedWeightStore, Prefetcher, PredictivePrefetcher};
-pub use predictor::LayerAheadPredictor;
+pub use kv::{AttentionResult, F16, KvPolicy, KvStore};
 pub use runtime::{dense_reference, MoeRuntime, RuntimeMetrics};
 pub use trace::Trace;
 pub use weights::{ExpertWeights, Tensor, WeightStore};

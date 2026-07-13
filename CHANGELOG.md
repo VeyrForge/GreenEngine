@@ -3,14 +3,36 @@
 All notable changes to Green Engine follow [Keep a Changelog](https://keepachangelog.com) and
 [SemVer](https://semver.org).
 
-**Releases:** **`1.0.0`** · `0.10.0` · `0.9.1` · `0.9.0` · `0.8.2` · `0.8.1` · `0.8.0` ·
+**Releases:** **`1.1.0`** · **`1.0.0`** · `0.10.0` · `0.9.1` · `0.9.0` · `0.8.2` · `0.8.1` · `0.8.0` ·
 `0.7.0` · `0.6.1` · `0.6.0` · `0.5.0` · `0.4.4` · `0.4.3` · `0.4.2` · `0.4.1` · `0.4.0` ·
 `0.3.2` · `0.3.1` · `0.3.0` · `0.2.2` · `0.2.1` · `0.2.0` · `0.1.0`
 
-Only **1.0.0** is published on [VeyrForge](https://github.com/VeyrForge/GreenEngine). Earlier
+Only **1.1.0** and **1.0.0** are published on [VeyrForge](https://github.com/VeyrForge/GreenEngine). Earlier
 versions are development history documented here.
 
 ---
+
+## [Unreleased]
+
+## [1.1.0] — 2026-07-13
+
+### Added
+- **`green-format` crate** — shared `green-model` v1 manifest types (`manifest.json`, tensor records,
+  checksums) for `.green` packages.
+- **`GreenModel` loader stub** — parses `.green` directories, validates sidecars, returns clear
+  Phase 2 errors; `ExpertProvider` and `KvStore` trait stubs for future runtime wiring.
+- **Honest README** — documents GGUF/llama.cpp compatibility mode today vs experimental scheduling
+  and planned native `.green` runtime.
+
+### Changed
+- **`ge run` / `ge chat serve`** — `.gguf` paths use llama.cpp (compatibility mode messaging);
+  `.green` paths attempt `GreenModel::open` with a helpful fallback message.
+- **`engine-core` `green` feature** — optional `greencompress` dependency and feature flag restored
+  for compression-tier benchmarks (`--features green`).
+
+### Fixed
+- Broken `green` Cargo feature wiring (`lib.rs` `green` module now matches `engine-core/Cargo.toml`).
+- **`green-format`** — parse Green Compress `pack-model` manifests (`source_model`, `tensor_files`, detailed tensor roles).
 
 ## [1.0.0]
 

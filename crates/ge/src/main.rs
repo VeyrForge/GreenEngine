@@ -11,6 +11,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
+use engine_core::{GreenModel, LoadConfig};
+
 /// Green Compress repo (override with GE_COMPRESS_REPO). Cloned + built by `ge install`.
 const COMPRESS_REPO_DEFAULT: &str = "https://github.com/VeyrForge/GreenCompress.git";
 const COMPRESS_GH: &str = "VeyrForge/GreenCompress";
@@ -67,13 +69,14 @@ fn print_help() {
         r#"ge — Green Engine CLI (run + compress + index local LLMs)
 
 USAGE
-  ge run <model> [--prompt "..."] [--gpu-layers N] [--ctx N]   run a model (GGUF path or HF repo)
+  ge run <model> [--prompt "..."] [--gpu-layers N] [--ctx N]   run GGUF via llama.cpp (compatibility mode)
+  ge run <model.green>                                         native .green packages (Phase 2 — not yet)
   ge compress <args...>                                        compress weights via Green Compress
   ge install                                                   install/build Green Compress (greencompress)
   ge embed install                                             install multilingual embed server deps
   ge embed serve [--mcp] [--port 8766]                         OpenAI /v1/embeddings (Granite, CPU)
   ge chat install                                              install local chat server deps (llama.cpp)
-  ge chat serve [--mcp] [--port 8767] [--model PATH | --hf]    OpenAI /v1/chat/completions
+  ge chat serve [--mcp] [--port 8767] [--model PATH | --hf]    OpenAI /v1/chat/completions (GGUF compatibility mode)
   ge translate install                                         translation server deps (llama-cpp)
   ge translate pull [hymt2|gams|all]                           download Hy-MT2 / GaMS GGUF weights
   ge translate compress [--model hymt2|gams|all] [--layers N]  Green Compress manifest per model
@@ -89,9 +92,54 @@ USAGE
   ge help
 
 Models and tools live under ~/.green (override with GE_HOME).
-Green Engine schedules; Green Compress shrinks weights; green-embed + green-chat power codehelper MCP.
+Today `ge run` and `ge chat serve` use llama-cli / llama-server / llama_cpp on ordinary GGUF models
+(static ggml offload). Compressed GGUF from `greencompress export-gguf` works with `--model file.gguf`.
+Native `.green` packages and dynamic MoE scheduling are planned/in progress — not active in generation yet.
+Green Engine schedules (benchmarks); Green Compress shrinks weights; green-embed + green-chat power codehelper MCP.
 (Set GE_COMPRESS_REPO if the Green Compress repo URL differs.)"#
     );
+}
+
+fn is_green_package(model: &str) -> bool {
+    let p = Path::new(model);
+    if p.extension().and_then(|e| e.to_str()) == Some("green") {
+        return true;
+    }
+    p.is_dir() && p.join("manifest.json").is_file()
+}
+
+fn is_gguf_model(model: &str) -> bool {
+    Path::new(model)
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(|e| e.eq_ignore_ascii_case("gguf"))
+        .unwrap_or(false)
+}
+
+fn handle_green_model(model: &str) -> i32 {
+    let path = Path::new(model);
+    if !path.is_dir() {
+        eprintln!(
+            "ge: '{model}' is not a .green package directory (expected a folder with manifest.json)"
+        );
+        return 1;
+    }
+    match GreenModel::open(path, &LoadConfig::default()) {
+        Err(e) => {
+            eprintln!("ge: {e}");
+            1
+        }
+        Ok(_) => {
+            eprintln!(
+                "ge: Native Green runtime not yet available; use export-gguf for llama.cpp fallback"
+            );
+            1
+        }
+    }
+}
+
+fn gguf_compat_note() {
+    eprintln!("ge: compatibility mode — static llama.cpp offload (GGUF)");
 }
 
 // ----------------------------------------------------------------------------- helpers
@@ -394,10 +442,16 @@ fn cmd_pull(args: &[String]) -> i32 {
 
 fn cmd_run(args: &[String]) -> i32 {
     let Some(model) = args.first() else {
-        eprintln!("usage: ge run <model.gguf | hf-repo> [--prompt \"...\"] [--gpu-layers N] [--ctx N]");
+        eprintln!("usage: ge run <model.gguf | model.green | hf-repo> [--prompt \"...\"] [--gpu-layers N] [--ctx N]");
         return 2;
     };
+    if is_green_package(model) {
+        return handle_green_model(model);
+    }
     let passthrough: Vec<&str> = args[1..].iter().map(String::as_str).collect();
+    if is_gguf_model(model) {
+        gguf_compat_note();
+    }
     // Prefer a llama.cpp binary if present (native ggml); else the bundled Python runner.
     if let Some(_llama) = which("llama-cli") {
         let is_repo = model.contains('/') && !Path::new(model).exists();
@@ -411,13 +465,16 @@ fn cmd_run(args: &[String]) -> i32 {
             eprintln!("ge run: need either `llama-cli` (llama.cpp) or python3 + the runner.");
             return 1;
         }
+        if is_gguf_model(model) {
+            eprintln!("ge run: falling back to green_run.py (llama.cpp via Python)");
+        }
         let model_flag = if model.contains('/') && !Path::new(model).exists() { "--hf" } else { "--model" };
         let mut a = vec![runner.to_str().unwrap(), model_flag, model.as_str()];
         a.extend(passthrough.iter().copied());
         return run_inherit("python3", &a);
     }
     eprintln!(
-        "ge run: no runner found.\n  Install llama.cpp (provides `llama-cli`), or run from a Green Engine\n  checkout that has runner/green_run.py. Native Rust run is on the roadmap."
+        "ge run: no runner found.\n  Install llama.cpp (provides `llama-cli`), or run from a Green Engine\n  checkout that has runner/green_run.py."
     );
     1
 }
@@ -751,7 +808,10 @@ fn cmd_chat(args: &[String]) -> i32 {
   ge chat install                              llama-cpp-python[server] venv\n\
   ge chat serve [--mcp] [--port 8767]          /v1/chat/completions\n\
   ge chat serve --mcp                          1B Q4_K_M, 2k ctx, KV q8_0 (enrich/routing)\n\
-  ge chat serve --model PATH                   explicit GGUF path\n\n\
+  ge chat serve --model PATH                   explicit GGUF path (compatibility mode: static llama.cpp offload)\n\
+  ge chat serve --model model.green            Phase 2 .green packages — not yet supported\n\n\
+  Phase 1 fallback: compress with Green Compress, then `greencompress export-gguf out.gguf`\n\
+  and run `ge chat serve --model out.gguf`.\n\n\
   codehelper (also in .mcp.json):\n\
     CODEHELPER_LLM_BASE_URL=http://127.0.0.1:8767\n\
     CODEHELPER_ENRICH_URL=http://127.0.0.1:8767\n\
@@ -807,6 +867,18 @@ fn cmd_chat_serve(args: &[String]) -> i32 {
     if !py.exists() {
         eprintln!("ge chat: venv missing — run:  ge chat install");
         return 1;
+    }
+    if let Some(model) = args
+        .iter()
+        .position(|a| a == "--model")
+        .and_then(|i| args.get(i + 1))
+    {
+        if is_green_package(model) {
+            return handle_green_model(model);
+        }
+        if is_gguf_model(model) {
+            gguf_compat_note();
+        }
     }
     let mut port = CHAT_PORT_DEFAULT;
     let mut passthrough: Vec<String> = Vec::new();

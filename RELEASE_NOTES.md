@@ -1,14 +1,13 @@
-# Green Engine 1.0.0
+# Green Engine 1.1.0
 
-First public release under the **VeyrForge Source-Available License**.
+Phase 1 honest runtime scope: GGUF llama.cpp compatibility mode, `.green` package validation, and shared manifest types.
 
 ## Highlights
 
-- **`ge` CLI** — search, pull, run, bench, and serve local GGUF models
-- **Memory-smart scheduling** — MoE expert residency, KV paging, prefix reuse (validated in Rust benchmarks)
-- **Green Compress integration** — `ge install` / `ge compress` for smaller weights
-- **Optional local MCP stack** — embed + chat servers for [Codehelper](https://github.com/VeyrForge/codehelper)
-- **Dashboard** — `ge ui serve` at http://127.0.0.1:8780
+- **`green-format` crate** — `green-model` v1 manifest types for `.green` packages from Green Compress `pack-model`
+- **`ge run` / `ge chat serve`** — compatibility mode messaging for GGUF; `.green` paths validate with clear Phase 2 errors
+- **`GreenModel` loader stub** — parses `pack-model` output; native inference not wired yet
+- **Pair with Green Compress `export-gguf`** — llama.cpp fallback for compressed weights
 
 ## Quick start
 
@@ -18,10 +17,10 @@ cargo build --release -p ge
 ./target/release/ge help
 ```
 
-See [README.md](README.md) and [docs/BENCHMARKS.md](docs/BENCHMARKS.md) for full details.
+See [README.md](README.md) and [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
 
 ## License
 
-Free to run and use; view source and submit suggested changes via GitHub. No fork, redistribution, or competing products without permission. See [LICENSE](LICENSE).
+Free to run and use; view source and submit suggested changes via GitHub. See [LICENSE](LICENSE).
 
-**Full Changelog**: https://github.com/VeyrForge/GreenEngine/commits/v1.0.0
+**Full Changelog**: https://github.com/VeyrForge/GreenEngine/commits/v1.1.0
